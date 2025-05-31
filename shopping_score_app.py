@@ -4,6 +4,7 @@ import os
 
 # 保存先のファイル名（同じディレクトリに作成）
 DATA_FILE = "products.json"
+board_file = "board.json"
 
 
 # 商品データの読み込み・保存用関数
@@ -23,12 +24,22 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+def load_board():
+    if os.path.exists(board_file):
+        with open(board_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+def save_board(posts):
+    with open(board_file, "w", encoding="utf-8") as f:
+        json.dump(posts, f, ensure_ascii=False, indent=4)
+
 
 # ページのタイトル
 st.title("買い物支援アプリ")
 
 # サイドバーでモード選択
-mode = st.sidebar.radio("モード選択", ["商品登録", "買い物評価"])
+mode = st.sidebar.radio("モード選択", ["商品登録", "買い物評価", "掲示板"])
 
 # 読み込み
 products = load_data()
@@ -42,6 +53,7 @@ if mode == "商品登録":
         price = st.number_input("値段", min_value=0.0, format="%.2f")
         shelf_life = st.number_input("日持ち日数", min_value=0, step=1)
         ease = st.slider("使いやすさ（10段階）", 1, 10, 5)
+        comment=st.text_input("コメント（任意）")
 
         submit_reg = st.form_submit_button("保存")
         if submit_reg:
@@ -54,7 +66,8 @@ if mode == "商品登録":
                     "product_name": product_name,
                     "price": price,
                     "shelf_life": shelf_life,
-                    "ease": ease
+                    "ease": ease,
+                    "comment": comment
                 }
                 # 既存データに追加
                 products.append(new_product)
@@ -84,7 +97,7 @@ if mode == "商品登録":
             with col1:
                 st.write(
                     f"【{prod['category']}】{prod['product_name']} - 値段: {prod['price']}円, "
-                    f"日持ち: {prod['shelf_life']}日, 使いやすさ: {prod['ease']}"
+                    f"日持ち: {prod['shelf_life']}日, 使いやすさ: {prod['ease']}, コメント:{prod['comment']}"
                 )
             with col2:
                 if st.button("削除", key=f"delete_{idx}"):
@@ -140,3 +153,26 @@ elif mode == "買い物評価":
 
                 st.info("※スコアの算出方法：使いやすさ×(登録値段/入力値段)×(入力日持ち/登録日持ち)")
 
+elif mode=="掲示板":
+    st.header("掲示板")
+    post_text = st.text_area("投稿内容を入力してください")
+
+    if st.button("投稿する"):
+        if post_text.strip():
+            posts = load_board()
+            new_post = {"text": post_text.strip()}
+            posts.insert(0, new_post)  # 新しい投稿が先頭に
+            save_board(posts)
+            st.success("投稿が完了しました！")
+            st.experimental_rerun()
+        else:
+            st.warning("空の投稿はできません。")
+
+    # 投稿一覧表示
+    st.subheader("過去の投稿")
+    posts = load_board()
+    if posts:
+        for i, post in enumerate(posts):
+            st.markdown(f"**{i+1}.** {post['text']}")
+    else:
+        st.info("まだ投稿がありません。")
